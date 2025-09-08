@@ -342,15 +342,8 @@
         </div>
         
         <div class="telegram-config">
-            <h3>⚙️ Konfigurasi Telegram</h3>
-            <div class="form-group">
-                <label for="botToken">Bot Token Telegram</label>
-                <input type="text" id="botToken" name="botToken" value="8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64">
-            </div>
-            <div class="form-group">
-                <label for="chatId">Chat ID Grup</label>
-                <input type="text" id="chatId" name="chatId" value="-4884449649">
-            </div>
+            <h3>Konfigurasi Telegram</h3>
+            <!-- Input token dan chatId disembunyikan -->
             <button type="button" class="btn btn-telegram" id="testBot">Test Koneksi Bot</button>
             <div id="telegram-status" style="margin-top: 10px;"></div>
         </div>
@@ -724,28 +717,21 @@
             
             // Test koneksi bot Telegram
             testBotBtn.addEventListener('click', function() {
-                const botToken = document.getElementById('botToken').value;
-                const chatId = document.getElementById('chatId').value;
-                
-                if (!botToken || !chatId) {
-                    telegramStatus.innerHTML = '<div class="location-error">Harap isi Bot Token dan Chat ID</div>';
+                // Simpan token dan chatId di variabel JS (ganti dengan milik Anda)
+                const BOT_TOKEN = "8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64";
+                const CHAT_ID = "-4884449649";
+
+                if (!BOT_TOKEN || !CHAT_ID) {
+                    telegramStatus.innerHTML = '<div class="location-error">Bot Token dan Chat ID belum diatur.</div>';
                     return;
                 }
-                
                 telegramStatus.innerHTML = '<div class="location-loading">Menguji koneksi...</div>';
-                
                 const testMessage = '✅ Bot Telegram terhubung dengan baik. Form Survey ODP/ODC siap digunakan.';
-                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-                
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
                 fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        text: testMessage
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: CHAT_ID, text: testMessage })
                 })
                 .then(response => response.json())
                 .then(data => {
