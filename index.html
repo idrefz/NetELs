@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Survey ODP/ODC - Deteksi Lokasi & Kirim ke Telegram</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #2c3e50;
@@ -339,16 +339,6 @@
                 <li>Gunakan "Kirim ke Telegram" untuk mengirim data ke grup</li>
                 <li>Gunakan "Ekspor ke Excel" untuk mendownload data</li>
             </ol>
-            
-            <h3>🌐 Cara Hosting di Netlify:</h3>
-            <ol>
-                <li>Salin semua kode di halaman ini (Ctrl+A lalu Ctrl+C)</li>
-                <li>Buka teks editor (Notepad, VS Code, dll.)</li>
-                <li>Buat file baru, tempel kode, simpan sebagai <strong>index.html</strong></li>
-                <li>Buka <a href="https://netlify.com" target="_blank">netlify.com</a></li>
-                <li>Drag & drop file index.html ke area yang disediakan</li>
-                <li>Tunggu hingga proses selesai, lalu akses website Anda</li>
-            </ol>
         </div>
         
         <div class="telegram-config">
@@ -644,15 +634,18 @@
                     .openPopup();
                 
                 // Tampilkan loading
-                const locationInfo = document.createElement('div');
-                locationInfo.className = 'location-info';
-                locationInfo.innerHTML = '<p>Mengidentifikasi lokasi...</p>';
-                getLocationBtn.parentNode.appendChild(locationInfo);
+                const locationInfo = document.getElementById('location-info');
+                if (locationInfo) {
+                    locationInfo.style.display = 'block';
+                    locationInfo.innerHTML = '<p>Mengidentifikasi lokasi...</p>';
+                }
                 
                 // Lakukan reverse geocoding menggunakan Nominatim
                 fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
                     .then(response => response.json())
                     .then(data => {
+                        if (!locationInfo) return;
+                        
                         if (data.error) {
                             locationInfo.innerHTML = '<p>Lokasi tidak ditemukan</p>';
                             return;
@@ -676,7 +669,9 @@
                         addressInput.value = data.display_name || '';
                     })
                     .catch(error => {
-                        locationInfo.innerHTML = '<p>Terjadi kesalahan saat mengidentifikasi lokasi</p>';
+                        if (locationInfo) {
+                            locationInfo.innerHTML = '<p>Terjadi kesalahan saat mengidentifikasi lokasi</p>';
+                        }
                         console.error('Error:', error);
                     });
             }
