@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Survey ODP/ODC - Deteksi Lokasi & Kirim ke Telegram</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #2c3e50;
@@ -339,11 +339,28 @@
                 <li>Gunakan "Kirim ke Telegram" untuk mengirim data ke grup</li>
                 <li>Gunakan "Ekspor ke Excel" untuk mendownload data</li>
             </ol>
+            
+            <h3>🌐 Cara Hosting di Netlify:</h3>
+            <ol>
+                <li>Salin semua kode di halaman ini (Ctrl+A lalu Ctrl+C)</li>
+                <li>Buka teks editor (Notepad, VS Code, dll.)</li>
+                <li>Buat file baru, tempel kode, simpan sebagai <strong>index.html</strong></li>
+                <li>Buka <a href="https://netlify.com" target="_blank">netlify.com</a></li>
+                <li>Drag & drop file index.html ke area yang disediakan</li>
+                <li>Tunggu hingga proses selesai, lalu akses website Anda</li>
+            </ol>
         </div>
         
         <div class="telegram-config">
-            <h3>Konfigurasi Telegram</h3>
-            <!-- Input token dan chatId disembunyikan -->
+            <h3>⚙️ Konfigurasi Telegram</h3>
+            <div class="form-group">
+                <label for="botToken">Bot Token Telegram</label>
+                <input type="text" id="botToken" name="botToken" value="8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64">
+            </div>
+            <div class="form-group">
+                <label for="chatId">Chat ID Grup</label>
+                <input type="text" id="chatId" name="chatId" value="-4884449649">
+            </div>
             <button type="button" class="btn btn-telegram" id="testBot">Test Koneksi Bot</button>
             <div id="telegram-status" style="margin-top: 10px;"></div>
         </div>
@@ -357,7 +374,6 @@
                         📍 Dapatkan Lokasi Saat Ini
                     </button>
                     <div class="location-status" id="location-status" style="display: none;"></div>
-                    <div class="location-info" id="location-info" style="display: none;"></div>
                 </div>
                 
                 <div class="form-group">
@@ -628,18 +644,15 @@
                     .openPopup();
                 
                 // Tampilkan loading
-                const locationInfo = document.getElementById('location-info');
-                if (locationInfo) {
-                    locationInfo.style.display = 'block';
-                    locationInfo.innerHTML = '<p>Mengidentifikasi lokasi...</p>';
-                }
+                const locationInfo = document.createElement('div');
+                locationInfo.className = 'location-info';
+                locationInfo.innerHTML = '<p>Mengidentifikasi lokasi...</p>';
+                getLocationBtn.parentNode.appendChild(locationInfo);
                 
                 // Lakukan reverse geocoding menggunakan Nominatim
                 fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
                     .then(response => response.json())
                     .then(data => {
-                        if (!locationInfo) return;
-                        
                         if (data.error) {
                             locationInfo.innerHTML = '<p>Lokasi tidak ditemukan</p>';
                             return;
@@ -663,9 +676,7 @@
                         addressInput.value = data.display_name || '';
                     })
                     .catch(error => {
-                        if (locationInfo) {
-                            locationInfo.innerHTML = '<p>Terjadi kesalahan saat mengidentifikasi lokasi</p>';
-                        }
+                        locationInfo.innerHTML = '<p>Terjadi kesalahan saat mengidentifikasi lokasi</p>';
                         console.error('Error:', error);
                     });
             }
@@ -718,21 +729,28 @@
             
             // Test koneksi bot Telegram
             testBotBtn.addEventListener('click', function() {
-                // Simpan token dan chatId di variabel JS (ganti dengan milik Anda)
-                const BOT_TOKEN = "8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64";
-                const CHAT_ID = "-4884449649";
-
-                if (!BOT_TOKEN || !CHAT_ID) {
-                    telegramStatus.innerHTML = '<div class="location-error">Bot Token dan Chat ID belum diatur.</div>';
+                const botToken = document.getElementById('botToken').value;
+                const chatId = document.getElementById('chatId').value;
+                
+                if (!botToken || !chatId) {
+                    telegramStatus.innerHTML = '<div class="location-error">Harap isi Bot Token dan Chat ID</div>';
                     return;
                 }
+                
                 telegramStatus.innerHTML = '<div class="location-loading">Menguji koneksi...</div>';
+                
                 const testMessage = '✅ Bot Telegram terhubung dengan baik. Form Survey ODP/ODC siap digunakan.';
-                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                
                 fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: CHAT_ID, text: testMessage })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: testMessage
+                    })
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -796,20 +814,24 @@
             // Kirim data tunggal ke Telegram
             window.sendSingleToTelegram = function(index) {
                 const data = surveyData[index];
-                // Ganti ambil token/chat id dari variabel
-                const BOT_TOKEN = "8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64";
-                const CHAT_ID = "-4884449649";
-
+                const botToken = document.getElementById('botToken').value;
+                const chatId = document.getElementById('chatId').value;
+                
+                if (!botToken || !chatId) {
+                    alert('Harap isi Bot Token dan Chat ID terlebih dahulu');
+                    return;
+                }
+                
                 const message = formatTelegramMessage(data);
-                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                
                 fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        chat_id: CHAT_ID,
+                        chat_id: chatId,
                         text: message,
                         parse_mode: 'HTML'
                     })
@@ -862,24 +884,29 @@
                     alert('Belum ada data yang disimpan');
                     return;
                 }
-                // Ganti ambil token/chat id dari variabel
-                const BOT_TOKEN = "8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64";
-                const CHAT_ID = "-4884449649";
-
+                
+                const botToken = document.getElementById('botToken').value;
+                const chatId = document.getElementById('chatId').value;
+                
+                if (!botToken || !chatId) {
+                    alert('Harap isi Bot Token dan Chat ID terlebih dahulu');
+                    return;
+                }
+                
                 // Kirim semua data
                 let sentCount = 0;
                 surveyData.forEach((data, index) => {
                     setTimeout(() => {
                         const message = formatTelegramMessage(data);
-                        const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-
+                        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                        
                         fetch(url, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify({
-                                chat_id: CHAT_ID,
+                                chat_id: chatId,
                                 text: message,
                                 parse_mode: 'HTML'
                             })
