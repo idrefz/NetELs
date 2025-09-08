@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey ODP/ODC - Deteksi Lokasi & Kirim ke Telegram</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --success: #2ecc71;
+            --warning: #f39c12;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        
+        .instructions {
+            background-color: #e7f5ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .form-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .form-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .section-title {
+            color: var(--primary);
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid var(--secondary);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--secondary);
+            outline: none;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+        }
+        
+        .radio-option input {
+            margin-right: 8px;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-get-location {
+            background-color: var(--success);
+            width: 100%;
+        }
+        
+        .btn-get-location:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-telegram {
+            background-color: #0088cc;
+        }
+        
+        .btn-telegram:hover {
+            background-color: #006da3;
+        }
+        
+        .btn-excel {
+            background-color: var(--success);
+        }
+        
+        .btn-excel:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-reset {
+            background-color: #95a5a6;
+        }
+        
+        .btn-reset:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .required::after {
+            content: " *";
+            color: var(--accent);
+        }
+        
+        .error-message {
+            color: var(--accent);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .success-message {
+            color: var(--success);
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+            padding: 10px;
+            background-color: #e7f6e9;
+            border-radius: 4px;
+        }
+        
+        #map-container {
+            height: 300px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .photo-preview {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .photo-item {
+            width: 100px;
+            height: 100px;
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .photo-item img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        .photo-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .location-info {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .location-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .location-loading {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .location-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .location-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .telegram-config {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #0088cc;
+        }
+        
+        .data-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+        
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 15px;
+            }
+            
+            .radio-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .btn {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Form Survey ODP/ODC - Deteksi Lokasi & Kirim ke Telegram</h1>
+        </header>
+        
+        <div class="instructions">
+            <h3>📋 Cara Menggunakan:</h3>
+            <ol>
+                <li>Isi form survey di bawah ini</li>
+                <li>Klik "Dapatkan Lokasi Saat Ini" untuk deteksi koordinat otomatis</li>
+                <li>Upload foto dokumentasi ODP/ODC</li>
+                <li>Klik "Simpan Data Survey" untuk menyimpan data</li>
+                <li>Gunakan "Kirim ke Telegram" untuk mengirim data ke grup</li>
+                <li>Gunakan "Ekspor ke Excel" untuk mendownload data</li>
+            </ol>
+        </div>
+        
+        <div class="telegram-config">
+            <h3>Konfigurasi Telegram</h3>
+            <!-- Input token dan chatId disembunyikan -->
+            <button type="button" class="btn btn-telegram" id="testBot">Test Koneksi Bot</button>
+            <div id="telegram-status" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="form-container">
+            <div class="form-section">
+                <h2 class="section-title">📍 Informasi Lokasi</h2>
+                
+                <div class="form-group">
+                    <button type="button" class="btn btn-get-location" id="get-location">
+                        📍 Dapatkan Lokasi Saat Ini
+                    </button>
+                    <div class="location-status" id="location-status" style="display: none;"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="latitude" class="required">Latitude</label>
+                    <input type="text" id="latitude" name="latitude" placeholder="-6.175392" required>
+                    <div class="error-message" id="latitude-error">Harap masukkan latitude yang valid</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="longitude" class="required">Longitude</label>
+                    <input type="text" id="longitude" name="longitude" placeholder="106.827153" required>
+                    <div class="error-message" id="longitude-error">Harap masukkan longitude yang valid</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sto" class="required">STO</label>
+                    <input type="text" id="sto" name="sto" required>
+                    <div class="error-message" id="sto-error">Harap masukkan STO</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="odpName" class="required">Nama ODP/ODC</label>
+                    <input type="text" id="odpName" name="odpName" required>
+                    <div class="error-message" id="odpName-error">Harap masukkan nama ODP/ODC</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="locationAddress" class="required">Alamat Lokasi</label>
+                    <textarea id="locationAddress" name="locationAddress" rows="3" required></textarea>
+                    <div class="error-message" id="locationAddress-error">Harap masukkan alamat lokasi</div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">🔧 Spesifikasi Teknis</h2>
+                
+                <div class="form-group">
+                    <label for="specification" class="required">Spesifikasi ODP/ODC</label>
+                    <input type="text" id="specification" name="specification" required>
+                    <div class="error-message" id="specification-error">Harap masukkan spesifikasi</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="capacity" class="required">Kapasitas ODP/ODC</label>
+                    <select id="capacity" name="capacity" required>
+                        <option value="">Pilih kapasitas</option>
+                        <option value="8 Core">8 Core</option>
+                        <option value="16 Core">16 Core</option>
+                        <option value="32 Core">32 Core</option>
+                    </select>
+                    <div class="error-message" id="capacity-error">Harap pilih kapasitas</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="existingPole">Tiang Eksisting</label>
+                    <select id="existingPole" name="existingPole">
+                        <option value="">Pilih kondisi tiang</option>
+                        <option value="Dapat digunakan">Dapat digunakan</option>
+                        <option value="Perlu perbaikan">Perlu perbaikan</option>
+                        <option value="Tidak dapat digunakan">Tidak dapat digunakan</option>
+                        <option value="Tidak ada tiang">Tidak ada tiang</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">📊 Status dan Rekomendasi</h2>
+                
+                <div class="form-group">
+                    <label class="required">Status ODP/ODC</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="status-new" name="status" value="ODP/ODC Baru" required>
+                            <label for="status-new">ODP/ODC Baru</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="status-update" name="status" value="Update ODP/ODC">
+                            <label for="status-update">Update ODP/ODC</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="status-notfound" name="status" value="ODP/ODC Tidak Ditemukan">
+                            <label for="status-notfound">ODP/ODC Tidak Ditemukan</label>
+                        </div>
+                    </div>
+                    <div class="error-message" id="status-error">Harap pilih status ODP/ODC</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="recommendation" class="required">Rekomendasi</label>
+                    <select id="recommendation" name="recommendation" required>
+                        <option value="">Pilih rekomendasi</option>
+                        <option value="Insert SW">Insert SW</option>
+                        <option value="Update label dan spek sesuai lapangan">Update label dan spek sesuai lapangan</option>
+                        <option value="Delete UIM">Delete UIM</option>
+                    </select>
+                    <div class="error-message" id="recommendation-error">Harap pilih rekomendasi</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="obstacles">Identifikasi Potensi Hambatan</label>
+                    <textarea id="obstacles" name="obstacles" rows="3" placeholder="Gangguan lingkungan, izin, zona terlarang, dll."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Catatan Tambahan</label>
+                    <textarea id="notes" name="notes" rows="3"></textarea>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">📷 Dokumentasi Foto</h2>
+                
+                <div class="form-group">
+                    <label for="photos" class="required">Dokumentasi Foto ODP/ODC</label>
+                    <input type="file" id="photos" name="photos" accept="image/*" multiple required>
+                    <div class="photo-preview" id="photoPreview"></div>
+                    <div class="error-message" id="photos-error">Harap unggah minimal satu foto</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn" id="submit-form">💾 Simpan Data Survey</button>
+                <button type="button" class="btn btn-telegram" id="send-telegram">📤 Kirim ke Telegram</button>
+                <button type="button" class="btn btn-excel" id="export-excel">📊 Ekspor ke Excel</button>
+                <button type="reset" class="btn btn-reset">🔄 Reset Form</button>
+            </div>
+            
+            <div class="success-message" id="success-message">
+                Data berhasil disimpan!
+            </div>
+        </div>
+        
+        <div class="data-section">
+            <h2 class="section-title">💾 Data Survey Tersimpan</h2>
+            <div class="form-group">
+                <table id="data-table">
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>STO</th>
+                            <th>ODP/ODC</th>
+                            <th>Koordinat</th>
+                            <th>Kapasitas</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-body">
+                        <!-- Data akan ditampilkan di sini -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn btn-reset" id="clear-data">🗑️ Hapus Semua Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inisialisasi peta
+            let map = L.map('map-container').setView([-6.175392, 106.827153], 13);
+            let marker = null;
+            
+            // Tambahkan tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Tambahkan marker awal
+            marker = L.marker([-6.175392, 106.827153])
+                .addTo(map)
+                .bindPopup('Lokasi saat ini')
+                .openPopup();
+            
+            const form = document.getElementById('surveyForm');
+            const photoInput = document.getElementById('photos');
+            const photoPreview = document.getElementById('photoPreview');
+            const getLocationBtn = document.getElementById('get-location');
+            const locationStatus = document.getElementById('location-status');
+            const latitudeInput = document.getElementById('latitude');
+            const longitudeInput = document.getElementById('longitude');
+            const addressInput = document.getElementById('locationAddress');
+            const testBotBtn = document.getElementById('testBot');
+            const telegramStatus = document.getElementById('telegram-status');
+            const sendTelegramBtn = document.getElementById('send-telegram');
+            const exportExcelBtn = document.getElementById('export-excel');
+            const clearDataBtn = document.getElementById('clear-data');
+            const dataBody = document.getElementById('data-body');
+            
+            let uploadedPhotos = [];
+            let surveyData = [];
+            
+            // Muat data dari localStorage
+            loadData();
+            
+            // Fungsi untuk mendapatkan lokasi saat ini
+            getLocationBtn.addEventListener('click', function() {
+                locationStatus.style.display = 'block';
+                locationStatus.className = 'location-status location-loading';
+                locationStatus.innerHTML = 'Mendeteksi lokasi...';
+                
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function(position) {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            
+                            latitudeInput.value = lat;
+                            longitudeInput.value = lng;
+                            
+                            // Perbarui peta
+                            map.setView([lat, lng], 15);
+                            if (marker) {
+                                map.removeLayer(marker);
+                            }
+                            marker = L.marker([lat, lng])
+                                .addTo(map)
+                                .bindPopup('Lokasi Anda saat ini')
+                                .openPopup();
+                            
+                            locationStatus.className = 'location-status location-success';
+                            locationStatus.innerHTML = 'Lokasi berhasil dideteksi!';
+                            
+                            // Otomatis identifikasi lokasi
+                            lookupLocation(lat, lng);
+                        },
+                        function(error) {
+                            locationStatus.className = 'location-status location-error';
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    locationStatus.innerHTML = 'Izin akses lokasi ditolak. Silakan izinkan akses lokasi.';
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    locationStatus.innerHTML = 'Informasi lokasi tidak tersedia.';
+                                    break;
+                                case error.TIMEOUT:
+                                    locationStatus.innerHTML = 'Permintaan lokasi timeout.';
+                                    break;
+                                default:
+                                    locationStatus.innerHTML = 'Terjadi kesalahan tidak diketahui.';
+                                    break;
+                            }
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                } else {
+                    locationStatus.className = 'location-status location-error';
+                    locationStatus.innerHTML = 'Geolocation tidak didukung oleh browser Anda';
+                }
+            });
+            
+            // Fungsi untuk melakukan reverse geocoding
+            function lookupLocation(lat, lng) {
+                // Perbarui peta
+                map.setView([lat, lng], 15);
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                marker = L.marker([lat, lng])
+                    .addTo(map)
+                    .bindPopup('Lokasi yang dipilih')
+                    .openPopup();
+                
+                // Tampilkan loading
+                const locationInfo = document.getElementById('location-info');
+                if (locationInfo) {
+                    locationInfo.style.display = 'block';
+                    locationInfo.innerHTML = '<p>Mengidentifikasi lokasi...</p>';
+                }
+                
+                // Lakukan reverse geocoding menggunakan Nominatim
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!locationInfo) return;
+                        
+                        if (data.error) {
+                            locationInfo.innerHTML = '<p>Lokasi tidak ditemukan</p>';
+                            return;
+                        }
+                        
+                        let details = '<p><strong>Alamat:</strong> ' + (data.display_name || 'Tidak diketahui') + '</p>';
+                        
+                        if (data.address) {
+                            const addr = data.address;
+                            if (addr.road) details += '<p><strong>Jalan:</strong> ' + addr.road + '</p>';
+                            if (addr.suburb) details += '<p><strong>Kelurahan:</strong> ' + addr.suburb + '</p>';
+                            if (addr.city_district) details += '<p><strong>Kecamatan:</strong> ' + addr.city_district + '</p>';
+                            if (addr.city) details += '<p><strong>Kota:</strong> ' + addr.city + '</p>';
+                            if (addr.state) details += '<p><strong>Provinsi:</strong> ' + addr.state + '</p>';
+                            if (addr.postcode) details += '<p><strong>Kode Pos:</strong> ' + addr.postcode + '</p>';
+                        }
+                        
+                        locationInfo.innerHTML = details;
+                        
+                        // Isi alamat secara otomatis
+                        addressInput.value = data.display_name || '';
+                    })
+                    .catch(error => {
+                        if (locationInfo) {
+                            locationInfo.innerHTML = '<p>Terjadi kesalahan saat mengidentifikasi lokasi</p>';
+                        }
+                        console.error('Error:', error);
+                    });
+            }
+            
+            // Preview gambar yang diupload
+            photoInput.addEventListener('change', function() {
+                const files = this.files;
+                
+                if (files.length > 0) {
+                    document.getElementById('photos-error').style.display = 'none';
+                }
+                
+                photoPreview.innerHTML = '';
+                uploadedPhotos = [];
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    if (!file.type.match('image.*')) continue;
+                    
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const div = document.createElement('div');
+                        div.className = 'photo-item';
+                        
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.alt = 'Preview';
+                        
+                        const removeBtn = document.createElement('button');
+                        removeBtn.className = 'photo-remove';
+                        removeBtn.innerHTML = '×';
+                        removeBtn.onclick = function() {
+                            div.remove();
+                            // Hapus file dari array
+                            uploadedPhotos = uploadedPhotos.filter(f => f !== file);
+                        };
+                        
+                        div.appendChild(img);
+                        div.appendChild(removeBtn);
+                        photoPreview.appendChild(div);
+                        
+                        // Simpan file
+                        uploadedPhotos.push(file);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Test koneksi bot Telegram
+            testBotBtn.addEventListener('click', function() {
+                // Simpan token dan chatId di variabel JS (ganti dengan milik Anda)
+                const BOT_TOKEN = "8254431453:AAHKeJBQUKimm8ZRsAXBJLKpNZ2w2VIcZ64";
+                const CHAT_ID = "-4884449649";
+
+                if (!BOT_TOKEN || !CHAT_ID) {
+                    telegramStatus.innerHTML = '<div class="location-error">Bot Token dan Chat ID belum diatur.</div>';
+                    return;
+                }
+                telegramStatus.innerHTML = '<div class="location-loading">Menguji koneksi...</div>';
+                const testMessage = '✅ Bot Telegram terhubung dengan baik. Form Survey ODP/ODC siap digunakan.';
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: CHAT_ID, text: testMessage })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        telegramStatus.innerHTML = '<div class="location-success">Bot Telegram berhasil terhubung! Pesan test telah dikirim.</div>';
+                    } else {
+                        telegramStatus.innerHTML = `<div class="location-error">Error: ${data.description}</div>`;
+                    }
+                })
+                .catch(error => {
+                    telegramStatus.innerHTML = `<div class="location-error">Terjadi kesalahan: ${error.message}</div>`;
+                });
+            });
+            
+            // Simpan data ke localStorage
+            function saveToLocalStorage(data) {
+                surveyData.push(data);
+                localStorage.setItem('surveyData', JSON.stringify(surveyData));
+                loadData();
+            }
+            
+            // Muat data dari localStorage
+            function loadData() {
+                const data = localStorage.getItem('surveyData');
+                if (data) {
+                    surveyData = JSON.parse(data);
+                    renderDataTable();
+                } else {
+                    surveyData = [];
+                    dataBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 10px;">Belum ada data survey</td></tr>';
+                }
+            }
+            
+            // Render data ke tabel
+            function renderDataTable() {
+                dataBody.innerHTML = '';
+                
+                if (surveyData.length === 0) {
+                    dataBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 10px;">Belum ada data survey</td></tr>';
+                    return;
+                }
+                
+                surveyData.forEach((data, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${data.timestamp}</td>
+                        <td>${data.sto}</td>
+                        <td>${data.odpName}</td>
+                        <td>${data.latitude}, ${data.longitude}</td>
+                        <td>${data.capacity}</td>
+                        <td>${data.status}</td>
+                        <td>
+                            <button class="btn" onclick="sendSingleToTelegram(${index})">Kirim</button>
+                            <button class="btn btn-reset" onclick="deleteData(${index})">Hapus</button>
+                        </td>
+                    `;
+                    dataBody.appendChild(row);
+                });
+            }
+            
+            // Kirim data tunggal ke Telegram
+            window.sendSingleToTelegram = function(index) {
+                const data = surveyData[index];
+                const botToken = document.getElementById('botToken').value;
+                const chatId = document.getElementById('chatId').value;
+                
+                if (!botToken || !chatId) {
+                    alert('Harap isi Bot Token dan Chat ID terlebih dahulu');
+                    return;
+                }
+                
+                const message = formatTelegramMessage(data);
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.ok) {
+                        alert('Data berhasil dikirim ke Telegram!');
+                    } else {
+                        alert('Gagal mengirim data: ' + result.description);
+                    }
+                })
+                .catch(error => {
+                    alert('Terjadi kesalahan: ' + error.message);
+                });
+            };
+            
+            // Hapus data
+            window.deleteData = function(index) {
+                if (confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+                    surveyData.splice(index, 1);
+                    localStorage.setItem('surveyData', JSON.stringify(surveyData));
+                    loadData();
+                }
+            };
+            
+            // Format pesan Telegram
+            function formatTelegramMessage(data) {
+                return `
+📋 <b>SURVEY ODP/ODC BARU</b>
+
+🏢 <b>STO:</b> ${data.sto}
+📛 <b>Nama ODP/ODC:</b> ${data.odpName}
+📍 <b>Koordinat:</b> ${data.latitude}, ${data.longitude}
+🏠 <b>Alamat:</b> ${data.locationAddress}
+🔧 <b>Spesifikasi:</b> ${data.specification}
+💾 <b>Kapasitas:</b> ${data.capacity}
+⚡ <b>Tiang Eksisting:</b> ${data.existingPole || 'Tidak ditentukan'}
+🔄 <b>Status:</b> ${data.status}
+✅ <b>Rekomendasi:</b> ${data.recommendation}
+⚠️ <b>Hambatan:</b> ${data.obstacles || 'Tidak ada'}
+📝 <b>Catatan:</b> ${data.notes || 'Tidak ada'}
+🕒 <b>Waktu Survey:</b> ${data.timestamp}
+                `.trim();
+            }
+            
+            // Kirim ke Telegram
+            sendTelegramBtn.addEventListener('click', function() {
+                if (surveyData.length === 0) {
+                    alert('Belum ada data yang disimpan');
+                    return;
+                }
+                
+                const botToken = document.getElementById('botToken').value;
+                const chatId = document.getElementById('chatId').value;
+                
+                if (!botToken || !chatId) {
+                    alert('Harap isi Bot Token dan Chat ID terlebih dahulu');
+                    return;
+                }
+                
+                // Kirim semua data
+                let sentCount = 0;
+                surveyData.forEach((data, index) => {
+                    setTimeout(() => {
+                        const message = formatTelegramMessage(data);
+                        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                        
+                        fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                chat_id: chatId,
+                                text: message,
+                                parse_mode: 'HTML'
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.ok) {
+                                sentCount++;
+                                if (sentCount === surveyData.length) {
+                                    alert('Semua data berhasil dikirim ke Telegram!');
+                                }
+                            } else {
+                                console.error('Gagal mengirim data:', result.description);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Terjadi kesalahan:', error.message);
+                        });
+                    }, index * 1000); // Delay 1 detik antara setiap pengiriman
+                });
+            });
+            
+            // Ekspor ke Excel
+            exportExcelBtn.addEventListener('click', function() {
+                if (surveyData.length === 0) {
+                    alert('Belum ada data yang disimpan');
+                    return;
+                }
+                
+                // Format data untuk Excel
+                const excelData = surveyData.map(item => ({
+                    'Waktu Survey': item.timestamp,
+                    'STO': item.sto,
+                    'Nama ODP/ODC': item.odpName,
+                    'Latitude': item.latitude,
+                    'Longitude': item.longitude,
+                    'Alamat': item.locationAddress,
+                    'Spesifikasi': item.specification,
+                    'Kapasitas': item.capacity,
+                    'Tiang Eksisting': item.existingPole || '',
+                    'Status': item.status,
+                    'Rekomendasi': item.recommendation,
+                    'Hambatan': item.obstacles || '',
+                    'Catatan': item.notes || ''
+                }));
+                
+                // Buat worksheet
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                
+                // Buat workbook
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Survey ODP/ODC');
+                
+                // Ekspor ke file
+                XLSX.writeFile(wb, 'survey_odp_odc.xlsx');
+            });
+            
+            // Hapus semua data
+            clearDataBtn.addEventListener('click', function() {
+                if (confirm('Apakah Anda yakin ingin menghapus semua data? Tindakan ini tidak dapat dibatalkan.')) {
+                    localStorage.removeItem('surveyData');
+                    surveyData = [];
+                    loadData();
+                    alert('Semua data berhasil dihapus');
+                }
+            });
+            
+            // Validasi form
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                let isValid = true;
+                
+                // Validasi Latitude
+                const latPattern = /^-?(\d{1,2}(\.\d+)?)$/;
+                const lat = parseFloat(latitudeInput.value);
+                if (!latPattern.test(latitudeInput.value) || isNaN(lat) || Math.abs(lat) > 90) {
+                    document.getElementById('latitude-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('latitude-error').style.display = 'none';
+                }
+                
+                // Validasi Longitude
+                const lngPattern = /^-?(\d{1,3}(\.\d+)?)$/;
+                const lng = parseFloat(longitudeInput.value);
+                if (!lngPattern.test(longitudeInput.value) || isNaN(lng) || Math.abs(lng) > 180) {
+                    document.getElementById('longitude-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('longitude-error').style.display = 'none';
+                }
+                
+                // Validasi STO
+                if (!form.sto.value.trim()) {
+                    document.getElementById('sto-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('sto-error').style.display = 'none';
+                }
+                
+                // Validasi Nama ODP/ODC
+                if (!form.odpName.value.trim()) {
+                    document.getElementById('odpName-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('odpName-error').style.display = 'none';
+                }
+                
+                // Validasi Alamat
+                if (!form.locationAddress.value.trim()) {
+                    document.getElementById('locationAddress-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('locationAddress-error').style.display = 'none';
+                }
+                
+                // Validasi Foto
+                if (uploadedPhotos.length === 0) {
+                    document.getElementById('photos-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('photos-error').style.display = 'none';
+                }
+                
+                // Validasi Spesifikasi
+                if (!form.specification.value.trim()) {
+                    document.getElementById('specification-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('specification-error').style.display = 'none';
+                }
+                
+                // Validasi Kapasitas
+                if (!form.capacity.value) {
+                    document.getElementById('capacity-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('capacity-error').style.display = 'none';
+                }
+                
+                // Validasi Status
+                const statusSelected = document.querySelector('input[name="status"]:checked');
+                if (!statusSelected) {
+                    document.getElementById('status-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('status-error').style.display = 'none';
+                }
+                
+                // Validasi Rekomendasi
+                if (!form.recommendation.value) {
+                    document.getElementById('recommendation-error').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('recommendation-error').style.display = 'none';
+                }
+                
+                // Jika valid, simpan data
+                if (isValid) {
+                    const submitBtn = document.getElementById('submit-form');
+                    submitBtn.textContent = 'Menyimpan...';
+                    submitBtn.disabled = true;
+                    
+                    // Siapkan data untuk disimpan
+                    const data = {
+                        "timestamp": new Date().toLocaleString('id-ID'),
+                        "sto": form.sto.value,
+                        "odpName": form.odpName.value,
+                        "latitude": latitudeInput.value,
+                        "longitude": longitudeInput.value,
+                        "locationAddress": form.locationAddress.value,
+                        "specification": form.specification.value,
+                        "capacity": form.capacity.value,
+                        "existingPole": form.existingPole.value,
+                        "status": statusSelected.value,
+                        "recommendation": form.recommendation.value,
+                        "obstacles": form.obstacles.value,
+                        "notes": form.notes.value,
+                        "imageCount": uploadedPhotos.length
+                    };
+                    
+                    // Simpan ke localStorage
+                    saveToLocalStorage(data);
+                    
+                    // Reset form
+                    form.reset();
+                    photoPreview.innerHTML = '';
+                    uploadedPhotos = [];
+                    
+                    document.getElementById('success-message').style.display = 'block';
+                    submitBtn.textContent = '💾 Simpan Data Survey';
+                    submitBtn.disabled = false;
+                    
+                    // Sembunyikan pesan sukses setelah 3 detik
+                    setTimeout(function() {
+                        document.getElementById('success-message').style.display = 'none';
+                    }, 3000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
